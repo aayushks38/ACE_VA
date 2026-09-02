@@ -24,15 +24,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -41,17 +41,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.imePadding
+
 import androidx.core.content.ContextCompat
 
 import com.ace.app.R
+import com.ace.app.ui.components.AceBackground
 
 
 // ============================================================
 // COLORS
 // ============================================================
 
-private val AceBackground = Color(0xFF03020A)
-private val AceInputBackground = Color(0xFF0B0815)
+private val AceInputBackground = Color(0xFF171022)
+private val AceInputInner = Color(0xFF211735)
+private val AceInputGlow = Color(0xFF9D6BFF)
 private val AcePurple = Color(0xFF8C52FF)
 private val AceLightPurple = Color(0xFFB99AFF)
 private val AceWhite = Color(0xFFF8F7FF)
@@ -73,57 +79,32 @@ data class ChatMessage(
 // ============================================================
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onProfileClick: () -> Unit
+) {
 
     val context = LocalContext.current
 
-    // --------------------------------------------------------
-    // TEXT INPUT
-    // --------------------------------------------------------
+
+    // ========================================================
+    // STATES
+    // ========================================================
 
     var inputText by remember {
         mutableStateOf("")
     }
 
-    // --------------------------------------------------------
-    // CHAT MESSAGES
-    // --------------------------------------------------------
-
     var messages by remember {
         mutableStateOf(emptyList<ChatMessage>())
     }
-
-    // --------------------------------------------------------
-    // WORK MODE
-    // --------------------------------------------------------
 
     var workModeEnabled by remember {
         mutableStateOf(false)
     }
 
-    var showWorkModeDialog by remember {
-        mutableStateOf(false)
-    }
-
-    // --------------------------------------------------------
-    // PROFILE
-    // --------------------------------------------------------
-
-    var showProfileDialog by remember {
-        mutableStateOf(false)
-    }
-
-    // --------------------------------------------------------
-    // ATTACHMENT MENU
-    // --------------------------------------------------------
-
     var showAttachmentMenu by remember {
         mutableStateOf(false)
     }
-
-    // --------------------------------------------------------
-    // MICROPHONE
-    // --------------------------------------------------------
 
     var isListening by remember {
         mutableStateOf(false)
@@ -274,16 +255,17 @@ fun HomeScreen() {
             return
         }
 
-        messages = messages + ChatMessage(
-            text = text,
-            isUser = true
-        )
+        messages =
+            messages + ChatMessage(
+                text = text,
+                isUser = true
+            )
 
-        // Temporary ACE response
-        messages = messages + ChatMessage(
-            text = "ACE received your message.",
-            isUser = false
-        )
+        messages =
+            messages + ChatMessage(
+                text = "ACE received your message.",
+                isUser = false
+            )
 
         inputText = ""
 
@@ -295,35 +277,13 @@ fun HomeScreen() {
     // MAIN SCREEN
     // ========================================================
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AceBackground)
-    ) {
-
-        // ----------------------------------------------------
-        // BACKGROUND GLOW
-        // ----------------------------------------------------
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            AcePurple.copy(alpha = 0.10f),
-                            Color.Transparent
-                        ),
-                        radius = 1000f
-                    )
-                )
-        )
-
+    AceBackground {
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
+                .imePadding()
         ) {
 
 
@@ -335,15 +295,18 @@ fun HomeScreen() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(72.dp)
-                    .padding(horizontal = 20.dp),
+                    .padding(
+                        horizontal = 20.dp
+                    ),
 
                 verticalAlignment =
                     Alignment.CenterVertically
             ) {
 
-                // ------------------------------------------------
+
+                // =================================================
                 // ACE TITLE
-                // ------------------------------------------------
+                // =================================================
 
                 Text(
                     text = "ACE",
@@ -354,86 +317,134 @@ fun HomeScreen() {
 
                     fontWeight = FontWeight.Bold,
 
-                    modifier = Modifier.weight(1f)
+                    modifier =
+                        Modifier.weight(1f)
                 )
 
 
-                // ------------------------------------------------
+                // =================================================
                 // WORK MODE
-                // ------------------------------------------------
+                // =================================================
 
-                Box(
+                Row(
                     modifier = Modifier
                         .clip(
                             RoundedCornerShape(30.dp)
                         )
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors =
+                                    if (workModeEnabled)
+                                        listOf(
+                                            Color(0xFF9D6BFF),
+                                            Color(0xFF6C3EFF)
+                                        )
+                                    else
+                                        listOf(
+                                            Color(0xFF3D246B),
+                                            Color(0xFF25163F)
+                                        )
+                            )
+                        )
                         .border(
-                            width = 1.5.dp,
-                            color = AcePurple,
+                            width = 1.dp,
+                            color =
+                                if (workModeEnabled)
+                                    Color(0xFFC4A5FF)
+                                else
+                                    AcePurple.copy(alpha = 0.8f),
                             shape = RoundedCornerShape(30.dp)
                         )
                         .clickable {
-
-                            workModeEnabled =
-                                !workModeEnabled
-
-                            showWorkModeDialog = true
+                            workModeEnabled = !workModeEnabled
                         }
                         .padding(
-                            horizontal = 18.dp,
-                            vertical = 10.dp
+                            horizontal = 16.dp,
+                            vertical = 9.dp
                         ),
 
-                    contentAlignment =
-                        Alignment.Center
+                    verticalAlignment = Alignment.CenterVertically,
+
+                    horizontalArrangement = Arrangement.Center
                 ) {
 
                     Text(
-                        text =
-                            if (workModeEnabled)
-                                "Work Mode ✓"
-                            else
-                                "Work Mode",
-
-                        color = AceLightPurple,
-
-                        fontSize = 14.sp
+                        text = "Work Mode",
+                        color = AceWhite,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
                     )
+
+                    if (workModeEnabled) {
+
+                        Spacer(
+                            modifier = Modifier.width(7.dp)
+                        )
+
+                        Text(
+                            text = "✓",
+
+                            color = AceWhite,
+
+                            fontSize = 15.sp,
+
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
 
                 Spacer(
-                    modifier = Modifier.width(10.dp)
+                    modifier =
+                        Modifier.width(12.dp)
                 )
 
 
-                // ------------------------------------------------
-                // PROFILE
-                // ------------------------------------------------
+                // =================================================
+                // SETTINGS BUTTON
+                // =================================================
 
                 Box(
                     modifier = Modifier
-                        .size(45.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF4B2A7A),
+                                    Color(0xFF26143F),
+                                    Color(0xFF120A20)
+                                )
+                            )
+                        )
                         .border(
-                            width = 1.5.dp,
-                            color = AcePurple,
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    AceLightPurple.copy(alpha = 0.9f),
+                                    AcePurple.copy(alpha = 0.6f),
+                                    AceLightPurple.copy(alpha = 0.35f)
+                                )
+                            ),
                             shape = CircleShape
                         )
                         .clickable {
-                            showProfileDialog = true
+                            onProfileClick()
                         },
 
-                    contentAlignment =
-                        Alignment.Center
+                    contentAlignment = Alignment.Center
                 ) {
 
-                    Text(
-                        text = "○",
+                    Icon(
+                        painter = painterResource(
+                            id = R.drawable.ic_settings
+                        ),
 
-                        color = AceWhite,
+                        contentDescription = "Settings",
 
-                        fontSize = 27.sp
+                        tint = AceLightPurple,
+
+                        modifier = Modifier.size(21.dp)
                     )
                 }
             }
@@ -448,7 +459,9 @@ fun HomeScreen() {
                     .fillMaxWidth()
                     .height(1.dp)
                     .background(
-                        AcePurple.copy(alpha = 0.25f)
+                        AcePurple.copy(
+                            alpha = 0.25f
+                        )
                     )
             )
 
@@ -465,10 +478,17 @@ fun HomeScreen() {
 
                 if (messages.isEmpty()) {
 
+
+                    // =============================================
+                    // EMPTY HOME SCREEN
+                    // =============================================
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp),
+                            .padding(
+                                horizontal = 24.dp
+                            ),
 
                         horizontalAlignment =
                             Alignment.CenterHorizontally,
@@ -477,9 +497,10 @@ fun HomeScreen() {
                             Arrangement.Center
                     ) {
 
-                        // ----------------------------------------
+
+                        // =========================================
                         // ACE LOGO
-                        // ----------------------------------------
+                        // =========================================
 
                         Image(
                             painter =
@@ -491,57 +512,60 @@ fun HomeScreen() {
                                 "ACE Logo",
 
                             contentScale =
-                                ContentScale.Crop,
+                                ContentScale.Fit,
 
                             modifier =
-                                Modifier.size(300.dp)
+                                Modifier.size(500.dp)
                         )
 
 
-                        Spacer(
-                            modifier =
-                                Modifier.height(20.dp)
-                        )
+                        // =========================================
+                        // MAIN TEXT
+                        // =========================================
+
+                        Column(
+                            modifier = Modifier
+                                .offset(y = (-150).dp),
+
+                            horizontalAlignment =
+                                Alignment.CenterHorizontally
+                        ) {
+
+                            Text(
+                                text =
+                                    "How can I help you today?",
+
+                                color = AceWhite,
+
+                                fontSize = 23.sp,
+
+                                fontWeight =
+                                    FontWeight.Medium
+                            )
 
 
-                        Text(
-                            text =
-                                "How can I help you today?",
-
-                            color =
-                                AceWhite,
-
-                            fontSize =
-                                23.sp,
-
-                            fontWeight =
-                                FontWeight.Medium
-                        )
+                            Spacer(
+                                modifier =
+                                    Modifier.height(10.dp)
+                            )
 
 
-                        Spacer(
-                            modifier =
-                                Modifier.height(10.dp)
-                        )
+                            Text(
+                                text =
+                                    "Ask ACE to explain, create, analyze or help you work.",
 
+                                color = AceGray,
 
-                        Text(
-                            text =
-                                "Ask ACE to explain, create, analyze or help you work.",
-
-                            color =
-                                AceGray,
-
-                            fontSize =
-                                14.sp
-                        )
+                                fontSize = 13.sp
+                            )
+                        }
                     }
-
                 } else {
 
-                    // ----------------------------------------
-                    // CHAT
-                    // ----------------------------------------
+
+                    // =============================================
+                    // CHAT SCREEN
+                    // =============================================
 
                     LazyColumn(
                         modifier =
@@ -566,7 +590,7 @@ fun HomeScreen() {
 
 
             // =================================================
-            // ATTACHMENT OPTIONS
+            // ATTACHMENT MENU
             // =================================================
 
             if (showAttachmentMenu) {
@@ -614,41 +638,42 @@ fun HomeScreen() {
 
 
             // =================================================
-            // INPUT BAR
+            // PREMIUM INPUT BAR
             // =================================================
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
-                        start = 18.dp,
-                        end = 18.dp,
+                        start = 4.dp,
                         top = 8.dp,
+                        end = 4.dp,
                         bottom = 14.dp
                     )
-                    .height(60.dp)
+                    .height(64.dp)
                     .clip(
                         RoundedCornerShape(32.dp)
                     )
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFF12101C),
+                                Color(0xFF211735),
+                                Color(0xFF171020)
+                            )
+                        )
+                    )
                     .border(
-                        width = 1.5.dp,
+                        width = 1.dp,
 
                         color =
-                            if (isListening)
-                                AceLightPurple
-                            else
-                                AcePurple,
+                            AcePurple.copy(alpha = 0.75f),
 
                         shape =
                             RoundedCornerShape(32.dp)
                     )
-                    .background(
-                        AceInputBackground.copy(
-                            alpha = 0.85f
-                        )
-                    )
                     .padding(
-                        horizontal = 7.dp
+                        horizontal = 6.dp
                     ),
 
                 verticalAlignment =
@@ -656,14 +681,27 @@ fun HomeScreen() {
             ) {
 
 
-                // =================================================
+                // =============================================
                 // PLUS BUTTON
-                // =================================================
+                // =============================================
 
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(50.dp)
                         .clip(CircleShape)
+                        .background(
+                            Color(0xFF211735)
+                        )
+                        .border(
+                            width = 1.dp,
+
+                            color =
+                                AcePurple.copy(
+                                    alpha = 0.25f
+                                ),
+
+                            shape = CircleShape
+                        )
                         .clickable {
 
                             showAttachmentMenu =
@@ -679,14 +717,17 @@ fun HomeScreen() {
 
                         color = AceWhite,
 
-                        fontSize = 30.sp
+                        fontSize = 28.sp,
+
+                        fontWeight =
+                            FontWeight.Light
                     )
                 }
 
 
-                // =================================================
-                // BASIC TEXT FIELD
-                // =================================================
+                // =============================================
+                // TEXT FIELD
+                // =============================================
 
                 BasicTextField(
                     value = inputText,
@@ -698,73 +739,94 @@ fun HomeScreen() {
                     modifier = Modifier
                         .weight(1f)
                         .padding(
-                            horizontal = 10.dp
+                            horizontal = 12.dp
                         ),
 
                     singleLine = true,
 
                     textStyle = TextStyle(
                         color = AceWhite,
-                        fontSize = 16.sp
+                        fontSize = 15.sp
                     ),
 
-                    // ---------------------------------------------
-                    // KEYBOARD SEND BUTTON
-                    // ---------------------------------------------
+                    cursorBrush =
+                        SolidColor(AceInputGlow),
 
                     keyboardOptions =
                         KeyboardOptions(
-                            imeAction =
-                                ImeAction.Send
+                            imeAction = ImeAction.Send
                         ),
 
                     keyboardActions =
                         KeyboardActions(
                             onSend = {
-
                                 sendMessage()
                             }
                         ),
 
-                    decorationBox = {
-                        innerTextField ->
+                    decorationBox = { innerTextField ->
 
-                        if (inputText.isEmpty()) {
+                        Box(
+                            contentAlignment =
+                                Alignment.CenterStart
+                        ) {
 
-                            Text(
-                                text =
-                                    if (isListening)
-                                        "Listening..."
-                                    else
-                                        "Ask ACE anything...",
+                            if (inputText.isEmpty()) {
 
-                                color =
-                                    if (isListening)
-                                        AceLightPurple
-                                    else
-                                        AceGray,
+                                Text(
+                                    text =
+                                        if (isListening)
+                                            "Listening..."
+                                        else
+                                            "Ask ACE anything...",
 
-                                fontSize =
-                                    16.sp
-                            )
+                                    color =
+                                        if (isListening)
+                                            AceLightPurple
+                                        else
+                                            AceGray.copy(
+                                                alpha = 0.9f
+                                            ),
+
+                                    fontSize = 15.sp
+                                )
+                            }
+
+                            innerTextField()
                         }
-
-                        innerTextField()
                     }
                 )
 
 
-                // =================================================
-                // SEND BUTTON (shown when there's text typed)
-                // =================================================
+                // =============================================
+                // SEND BUTTON
+                // =============================================
 
                 if (inputText.isNotBlank()) {
 
                     Box(
                         modifier = Modifier
-                            .size(45.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
-                            .background(AcePurple)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        AceInputGlow,
+                                        AcePurple
+                                    )
+                                )
+                            )
+                            .border(
+                                width = 1.dp,
+
+                                color =
+                                    AceLightPurple.copy(
+                                        alpha = 0.7f
+                                    ),
+
+                                shape =
+                                    CircleShape
+                            )
                             .clickable {
 
                                 sendMessage()
@@ -779,20 +841,46 @@ fun HomeScreen() {
 
                             color = AceWhite,
 
-                            fontSize = 20.sp
+                            fontSize = 19.sp,
+
+                            fontWeight =
+                                FontWeight.Bold
                         )
                     }
 
                 } else {
 
-                    // =================================================
-                    // MIC ICON (shown when input is empty)
-                    // =================================================
+
+                    // =============================================
+                    // MICROPHONE BUTTON
+                    // =============================================
 
                     Box(
                         modifier = Modifier
-                            .size(45.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
+                            .background(
+                                if (isListening)
+                                    AcePurple.copy(
+                                        alpha = 0.28f
+                                    )
+                                else
+                                    Color(0xFF211735)
+                            )
+                            .border(
+                                width = 1.dp,
+
+                                color =
+                                    if (isListening)
+                                        AceLightPurple
+                                    else
+                                        AcePurple.copy(
+                                            alpha = 0.3f
+                                        ),
+
+                                shape =
+                                    CircleShape
+                            )
                             .clickable {
 
                                 startMicrophone()
@@ -805,8 +893,7 @@ fun HomeScreen() {
                         Image(
                             painter =
                                 painterResource(
-                                    id =
-                                        R.drawable.mic_icon
+                                    id = R.drawable.mic_icon
                                 ),
 
                             contentDescription =
@@ -818,112 +905,15 @@ fun HomeScreen() {
                             modifier =
                                 Modifier.size(
                                     if (isListening)
-                                        31.dp
+                                        28.dp
                                     else
-                                        27.dp
+                                        24.dp
                                 )
                         )
                     }
                 }
             }
         }
-    }
-
-
-    // ========================================================
-    // WORK MODE DIALOG
-    // ========================================================
-
-    if (showWorkModeDialog) {
-
-        AlertDialog(
-            onDismissRequest = {
-
-                showWorkModeDialog =
-                    false
-            },
-
-            title = {
-
-                Text(
-                    text = "Work Mode"
-                )
-            },
-
-            text = {
-
-                Text(
-                    text =
-                        if (workModeEnabled)
-                            "Work Mode is enabled."
-                        else
-                            "Work Mode is disabled."
-                )
-            },
-
-            confirmButton = {
-
-                TextButton(
-                    onClick = {
-
-                        showWorkModeDialog =
-                            false
-                    }
-                ) {
-
-                    Text(
-                        text = "OK"
-                    )
-                }
-            }
-        )
-    }
-
-
-    // ========================================================
-    // PROFILE DIALOG
-    // ========================================================
-
-    if (showProfileDialog) {
-
-        AlertDialog(
-            onDismissRequest = {
-
-                showProfileDialog =
-                    false
-            },
-
-            title = {
-
-                Text(
-                    text = "ACE Profile"
-                )
-            },
-
-            text = {
-
-                Text(
-                    text =
-                        "Profile settings will be available here."
-                )
-            },
-
-            confirmButton = {
-
-                TextButton(
-                    onClick = {
-
-                        showProfileDialog =
-                            false
-                    }
-                ) {
-
-                    Text(
-                        text = "Close"
-                    )
-                }
-            }
-        )
     }
 }
 
@@ -967,9 +957,7 @@ fun startAceSpeechRecognition(
 
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-
-                RecognizerIntent
-                    .LANGUAGE_MODEL_FREE_FORM
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
             )
 
             putExtra(
@@ -987,6 +975,7 @@ fun startAceSpeechRecognition(
     speechRecognizer.setRecognitionListener(
 
         object : RecognitionListener {
+
 
             override fun onReadyForSpeech(
                 params: Bundle?
@@ -1072,7 +1061,6 @@ fun startAceSpeechRecognition(
 
             override fun onEvent(
                 eventType: Int,
-
                 params: Bundle?
             ) {
             }
@@ -1112,14 +1100,12 @@ fun ChatBubble(
                     max = 300.dp
                 )
                 .clip(
-                    RoundedCornerShape(
-                        18.dp
-                    )
+                    RoundedCornerShape(18.dp)
                 )
                 .background(
                     if (message.isUser)
                         AcePurple.copy(
-                            alpha = 0.18f
+                            alpha = 0.22f
                         )
                     else
                         AceInputBackground
@@ -1129,13 +1115,11 @@ fun ChatBubble(
 
                     color =
                         AcePurple.copy(
-                            alpha = 0.4f
+                            alpha = 0.5f
                         ),
 
                     shape =
-                        RoundedCornerShape(
-                            18.dp
-                        )
+                        RoundedCornerShape(18.dp)
                 )
                 .padding(
                     horizontal = 16.dp,
@@ -1170,29 +1154,39 @@ fun SmallActionButton(
             .clip(
                 RoundedCornerShape(20.dp)
             )
+            .background(
+                AceInputInner
+            )
             .border(
                 width = 1.dp,
 
-                color = AcePurple,
+                color =
+                    AcePurple.copy(
+                        alpha = 0.7f
+                    ),
 
                 shape =
                     RoundedCornerShape(20.dp)
             )
             .clickable {
+
                 onClick()
             }
             .padding(
-                horizontal = 14.dp,
-                vertical = 8.dp
-            )
+                horizontal = 16.dp,
+                vertical = 10.dp
+            ),
+
+        contentAlignment =
+            Alignment.Center
     ) {
 
         Text(
             text = text,
 
-            color = AceLightPurple,
+            color = AceWhite,
 
-            fontSize = 12.sp
+            fontSize = 13.sp
         )
     }
 }
