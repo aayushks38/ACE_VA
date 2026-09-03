@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.graphics.asImageBitmap
 
 import androidx.core.content.ContextCompat
 
@@ -70,7 +71,10 @@ private val AceGray = Color(0xFF9C98B0)
 
 data class ChatMessage(
     val text: String,
-    val isUser: Boolean
+    val isUser: Boolean,
+    val image: android.graphics.Bitmap? = null,
+    val fileName: String? = null,
+    val fileUri: android.net.Uri? = null
 )
 
 
@@ -110,25 +114,60 @@ fun HomeScreen(
         mutableStateOf(false)
     }
 
+    var selectedImage by remember {
+    mutableStateOf<android.graphics.Bitmap?>(null)
+    }
+
+    var selectedFileUri by remember {
+        mutableStateOf<android.net.Uri?>(null)
+    }
+
+    var selectedFileName by remember {
+        mutableStateOf<String?>(null)
+    }
+
 
     // ========================================================
     // FILE PICKER
     // ========================================================
 
     val filePickerLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.OpenDocument()
-        ) { uri ->
+    rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
 
-            if (uri != null) {
+        if (uri != null) {
 
-                Toast.makeText(
-                    context,
-                    "File selected",
-                    Toast.LENGTH_SHORT
-                ).show()
+            var name = "Selected file"
+
+            context.contentResolver.query(
+                uri,
+                null,
+                null,
+                null,
+                null
+            )?.use { cursor ->
+
+                val nameIndex =
+                    cursor.getColumnIndex(
+                        android.provider.OpenableColumns.DISPLAY_NAME
+                    )
+
+                if (
+                    nameIndex >= 0 &&
+                    cursor.moveToFirst()
+                ) {
+                    name = cursor.getString(nameIndex)
+                }
             }
+
+            selectedFileUri = uri
+            selectedFileName = name
+            selectedImage = null
+
+            showAttachmentMenu = false
         }
+    }
 
 
     // ========================================================
@@ -136,17 +175,38 @@ fun HomeScreen(
     // ========================================================
 
     val imagePickerLauncher =
-        rememberLauncherForActivityResult(
+    rememberLauncherForActivityResult(
             ActivityResultContracts.GetContent()
         ) { uri ->
 
             if (uri != null) {
 
-                Toast.makeText(
-                    context,
-                    "Image selected",
-                    Toast.LENGTH_SHORT
-                ).show()
+                val bitmap =
+                    if (android.os.Build.VERSION.SDK_INT >=
+                        android.os.Build.VERSION_CODES.P) {
+
+                        val source =
+                            android.graphics.ImageDecoder.createSource(
+                                context.contentResolver,
+                                uri
+                            )
+
+                        android.graphics.ImageDecoder.decodeBitmap(source)
+
+                    } else {
+
+                        @Suppress("DEPRECATION")
+                        android.provider.MediaStore.Images.Media.getBitmap(
+                            context.contentResolver,
+                            uri
+                        )
+                    }
+
+                selectedImage = bitmap
+                selectedFileUri = null
+                selectedFileName = null
+
+                showAttachmentMenu = false
             }
         }
 
@@ -156,19 +216,19 @@ fun HomeScreen(
     // ========================================================
 
     val cameraLauncher =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.TakePicturePreview()
-        ) { bitmap ->
+    rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
 
-            if (bitmap != null) {
+        if (bitmap != null) {
 
-                Toast.makeText(
-                    context,
-                    "Photo captured",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+            selectedImage = bitmap
+            selectedFileUri = null
+            selectedFileName = null
+
+            showAttachmentMenu = false
         }
+    }
 
 
     // ========================================================
@@ -251,14 +311,21 @@ fun HomeScreen(
 
         val text = inputText.trim()
 
-        if (text.isEmpty()) {
+        if (
+            text.isEmpty() &&
+            selectedImage == null &&
+            selectedFileUri == null
+        ) {
             return
         }
 
         messages =
             messages + ChatMessage(
                 text = text,
-                isUser = true
+                isUser = true,
+                image = selectedImage,
+                fileName = selectedFileName,
+                fileUri = selectedFileUri
             )
 
         messages =
@@ -268,6 +335,10 @@ fun HomeScreen(
             )
 
         inputText = ""
+
+        selectedImage = null
+        selectedFileUri = null
+        selectedFileName = null
 
         showAttachmentMenu = false
     }
@@ -635,7 +706,55 @@ fun HomeScreen(
                     }
                 }
             }
+            if (
+                selectedImage != null ||
+                selectedFileUri != null
+            ) {
 
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 18.dp,
+                            vertical = 6.dp
+                        )
+                        .clip(
+                            RoundedCornerShape(18.dp)
+                        )
+                        .background(
+                            Color(0xFF211735)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = AcePurple.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(18.dp)
+                        )
+                        .padding(12.dp)
+                ) {
+
+                    if (selectedImage != null) {
+
+                        Image(
+                            bitmap = selectedImage!!.asImageBitmap(),
+                            contentDescription = "Selected image",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(
+                                    RoundedCornerShape(12.dp)
+                                )
+                        )
+
+                    } else {
+
+                        Text(
+                            text = "📄 ${selectedFileName ?: "Selected file"}",
+                            color = AceWhite,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
 
             // =================================================
             // PREMIUM INPUT BAR
@@ -802,7 +921,11 @@ fun HomeScreen(
                 // SEND BUTTON
                 // =============================================
 
-                if (inputText.isNotBlank()) {
+                if (
+                    inputText.isNotBlank() ||
+                    selectedImage != null ||
+                    selectedFileUri != null
+                ) {
 
                     Box(
                         modifier = Modifier
@@ -1127,13 +1250,69 @@ fun ChatBubble(
                 )
         ) {
 
-            Text(
-                text = message.text,
+            Column {
 
-                color = AceWhite,
+                if (message.image != null) {
 
-                fontSize = 15.sp
-            )
+                    Image(
+                        bitmap = message.image.asImageBitmap(),
+                        contentDescription = "Chat image",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .widthIn(max = 260.dp)
+                            .heightIn(max = 220.dp)
+                            .clip(
+                                RoundedCornerShape(12.dp)
+                            )
+                    )
+
+                    if (message.text.isNotBlank()) {
+                        Spacer(
+                            modifier = Modifier.height(8.dp)
+                        )
+                    }
+                }
+
+                if (message.fileUri != null) {
+
+                    Box(
+                        modifier = Modifier
+                            .clip(
+                                RoundedCornerShape(12.dp)
+                            )
+                            .background(
+                                AcePurple.copy(alpha = 0.15f)
+                            )
+                            .padding(
+                                horizontal = 12.dp,
+                                vertical = 10.dp
+                            )
+                    ) {
+
+                        Text(
+                            text =
+                                "📄 ${message.fileName ?: "File"}",
+                            color = AceWhite,
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    if (message.text.isNotBlank()) {
+                        Spacer(
+                            modifier = Modifier.height(8.dp)
+                        )
+                    }
+                }
+
+                if (message.text.isNotBlank()) {
+
+                    Text(
+                        text = message.text,
+                        color = AceWhite,
+                        fontSize = 15.sp
+                    )
+                }
+            }
         }
     }
 }
