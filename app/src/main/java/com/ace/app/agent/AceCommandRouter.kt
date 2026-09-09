@@ -14,7 +14,10 @@ data class RoutingResult(
     val route: RouteType,
     val confidence: Float,
     val workflow: AgentPlan?,
-    val reason: String
+    val reason: String,
+    val executionMode: ExecutionMode = ExecutionMode.DETERMINISTIC,
+    val brainRequired: Boolean = false,
+    val brainAvailable: Boolean = false
 )
 
 sealed class CommandRoute {
@@ -25,7 +28,7 @@ sealed class CommandRoute {
 
 class AceCommandRouter {
 
-    fun route(goal: String): CommandRoute {
+    fun route(goal: String, brainAvailable: Boolean = false): CommandRoute {
         val clean = goal.replace("_", " ").trim()
 
         if (clean.isBlank()) {
@@ -33,9 +36,12 @@ class AceCommandRouter {
                 route = RouteType.DEEP_BRAIN,
                 confidence = 0.0f,
                 workflow = null,
-                reason = "blank_command"
+                reason = "blank_command",
+                executionMode = ExecutionMode.BRAIN,
+                brainRequired = true,
+                brainAvailable = brainAvailable
             )
-            logRouting(clean, 0, false, RouteType.DEEP_BRAIN, false, "blank_command")
+            logRouting(clean, 0, false, RouteType.DEEP_BRAIN, false, "blank_command", ExecutionMode.BRAIN, false, brainAvailable)
             return CommandRoute.DeepBrain(result)
         }
 
@@ -69,10 +75,16 @@ class AceCommandRouter {
                 route = RouteType.INSTANT_INTELLIGENCE,
                 confidence = instantCap.confidence(targetCmd),
                 workflow = plan,
-                reason = "instant_intelligence_${instantCap.id}"
+                reason = "instant_intelligence_${instantCap.id}",
+                executionMode = ExecutionMode.DETERMINISTIC,
+                brainRequired = false,
+                brainAvailable = brainAvailable
             )
             Log.i("ACE_ROUTER", "ACE_ROUTER: command=\"$clean\"")
             Log.i("ACE_ROUTER", "ACE_ROUTER: route=INSTANT_INTELLIGENCE")
+            Log.i("ACE_ROUTER", "ACE_ROUTER: execution_mode=DETERMINISTIC")
+            Log.i("ACE_ROUTER", "ACE_ROUTER: brain_required=false")
+            Log.i("ACE_ROUTER", "ACE_ROUTER: brain_available=$brainAvailable")
             Log.i("ACE_INSTANT", "ACE_INSTANT: capability=${instantCap.id}")
             Log.i("ACE_DEVICE", "ACE_DEVICE: source=${instantCap.source}")
             Log.i("ACE_ROUTER", "ACE_ROUTER: GEMMA_BYPASSED=true")
@@ -101,9 +113,12 @@ class AceCommandRouter {
                     route = RouteType.FAST_ACTION,
                     confidence = 1.0f,
                     workflow = plan,
-                    reason = "single_fast_action"
+                    reason = "single_fast_action",
+                    executionMode = ExecutionMode.DETERMINISTIC,
+                    brainRequired = false,
+                    brainAvailable = brainAvailable
                 )
-                logRouting(clean, 1, true, RouteType.FAST_ACTION, true, "single_fast_action")
+                logRouting(clean, 1, true, RouteType.FAST_ACTION, true, "single_fast_action", ExecutionMode.DETERMINISTIC, false, brainAvailable)
                 return CommandRoute.Fast(result, plan)
             }
         }
@@ -122,9 +137,12 @@ class AceCommandRouter {
                 route = RouteType.STRUCTURED_WORKFLOW,
                 confidence = 0.95f,
                 workflow = plan,
-                reason = "structured_capability_workflow"
+                reason = "structured_capability_workflow",
+                executionMode = ExecutionMode.DETERMINISTIC,
+                brainRequired = false,
+                brainAvailable = brainAvailable
             )
-            logRouting(clean, complexity, true, RouteType.STRUCTURED_WORKFLOW, true, "structured_capability_workflow")
+            logRouting(clean, complexity, true, RouteType.STRUCTURED_WORKFLOW, true, "structured_capability_workflow", ExecutionMode.DETERMINISTIC, false, brainAvailable)
             logWorkflow(structuredSteps)
             return CommandRoute.Workflow(result, plan)
         }
@@ -170,9 +188,12 @@ class AceCommandRouter {
                     route = RouteType.DETERMINISTIC_WORKFLOW,
                     confidence = 0.95f,
                     workflow = plan,
-                    reason = "deterministic_multi_step"
+                    reason = "deterministic_multi_step",
+                    executionMode = ExecutionMode.DETERMINISTIC,
+                    brainRequired = false,
+                    brainAvailable = brainAvailable
                 )
-                logRouting(clean, complexity, true, RouteType.DETERMINISTIC_WORKFLOW, true, "deterministic_multi_step")
+                logRouting(clean, complexity, true, RouteType.DETERMINISTIC_WORKFLOW, true, "deterministic_multi_step", ExecutionMode.DETERMINISTIC, false, brainAvailable)
                 logWorkflow(allSteps)
                 return CommandRoute.Workflow(result, plan)
             }
@@ -183,9 +204,12 @@ class AceCommandRouter {
             route = RouteType.DEEP_BRAIN,
             confidence = 0.0f,
             workflow = null,
-            reason = "reasoning_required"
+            reason = "reasoning_required",
+            executionMode = if (brainAvailable) ExecutionMode.BRAIN else ExecutionMode.BRAIN_UNAVAILABLE,
+            brainRequired = true,
+            brainAvailable = brainAvailable
         )
-        logRouting(clean, complexity, false, RouteType.DEEP_BRAIN, false, "reasoning_required")
+        logRouting(clean, complexity, false, RouteType.DEEP_BRAIN, false, "reasoning_required", if (brainAvailable) ExecutionMode.BRAIN else ExecutionMode.BRAIN_UNAVAILABLE, true, brainAvailable)
         return CommandRoute.DeepBrain(result)
     }
 
@@ -195,13 +219,19 @@ class AceCommandRouter {
         deterministicMatch: Boolean,
         route: RouteType,
         gemmaBypassed: Boolean,
-        reason: String
+        reason: String,
+        executionMode: ExecutionMode,
+        brainRequired: Boolean,
+        brainAvailable: Boolean
     ) {
         Log.i("ACE_ROUTER", "ACE_ROUTER: command=$command")
         Log.i("ACE_ROUTER", "ACE_ROUTER: complexity=$complexity")
         Log.i("ACE_ROUTER", "ACE_ROUTER: deterministic_match=$deterministicMatch")
         Log.i("ACE_ROUTER", "ACE_ROUTER: route=$route")
         Log.i("ACE_ROUTER", "ACE_ROUTER: GEMMA_BYPASSED=$gemmaBypassed")
+        Log.i("ACE_ROUTER", "ACE_ROUTER: execution_mode=$executionMode")
+        Log.i("ACE_ROUTER", "ACE_ROUTER: brain_required=$brainRequired")
+        Log.i("ACE_ROUTER", "ACE_ROUTER: brain_available=$brainAvailable")
         if (route == RouteType.DEEP_BRAIN) {
             Log.i("ACE_ROUTER", "ACE_ROUTER: reason=$reason")
         }

@@ -248,7 +248,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         AceConversationContext.update(cleanGoal)
         android.util.Log.i("ACE_TASK", "ACE_TASK: Received voice command = $cleanGoal")
 
-        when (val route = commandRouter.route(cleanGoal)) {
+        when (val route = commandRouter.route(cleanGoal, brainAvailable = brain.isReady())) {
             is CommandRoute.Fast -> {
                 val finishMs = System.currentTimeMillis()
                 val routeStr = route.result.route.name
@@ -256,7 +256,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: FAST_ACTION capability plan selected")
                 android.util.Log.i("ACE_SESSION", "ACE_SESSION: state_transition=IDLE→EXECUTING")
                 _uiState.value = _uiState.value.copy(announcement = "Executing task...")
-                executePlan(cleanGoal, route.plan, generationId)
+                executePlan(cleanGoal, route.plan, generationId, brainRequired = route.result.brainRequired, brainAvailable = route.result.brainAvailable)
             }
 
             is CommandRoute.Workflow -> {
@@ -266,7 +266,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: WORKFLOW capability plan selected")
                 android.util.Log.i("ACE_SESSION", "ACE_SESSION: state_transition=IDLE→EXECUTING")
                 _uiState.value = _uiState.value.copy(announcement = "Executing task...")
-                executePlan(cleanGoal, route.plan, generationId)
+                executePlan(cleanGoal, route.plan, generationId, brainRequired = route.result.brainRequired, brainAvailable = route.result.brainAvailable)
             }
 
             is CommandRoute.DeepBrain -> {
@@ -332,7 +332,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun executePlan(cleanGoal: String, plan: AgentPlan, generationId: Long, summaryReasoning: String? = null) {
+    private fun executePlan(cleanGoal: String, plan: AgentPlan, generationId: Long, summaryReasoning: String? = null, brainRequired: Boolean = false, brainAvailable: Boolean = false) {
         val category = when (plan.intent.lowercase()) {
             "communication" -> TaskCategory.COMMUNICATION
             "document" -> TaskCategory.DOCUMENT
@@ -386,7 +386,9 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         AceProgressSpeaker.speakActionStarted(capabilityId, params, generationId)
                     }
-                }
+                },
+                brainRequired = brainRequired,
+                brainAvailable = brainAvailable
             ).also { finalTask ->
                 if (AceTaskSessionManager.validateOrDiscard(generationId, "TaskViewModel.executePlan")) {
                     val response = com.ace.app.voice.AssistantResponseComposer.compose(cleanGoal, finalTask)

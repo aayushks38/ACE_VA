@@ -20,6 +20,12 @@ enum class ActionResultStatus {
     PARTIAL
 }
 
+enum class ExecutionMode {
+    DETERMINISTIC,  // Deterministic capability: flashlight, battery, call, etc.
+    BRAIN,          // Brain-dependent: requires Gemma interpretation
+    BRAIN_UNAVAILABLE
+}
+
 enum class TaskStatus {
     PLANNING,
     READY,

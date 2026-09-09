@@ -14,7 +14,9 @@ class AgentExecutor(private val context: Context?) {
         onStepUpdated: (AgentTask) -> Unit,
         onApprovalRequested: (ApprovalDetails) -> Unit,
         generationId: Long = 0L,
-        onProgressSpeech: ((capabilityId: String, params: Map<String, String>) -> Unit)? = null
+        onProgressSpeech: ((capabilityId: String, params: Map<String, String>) -> Unit)? = null,
+        brainRequired: Boolean = false,
+        brainAvailable: Boolean = false
     ): AgentTask {
         if (!AceTaskSessionManager.validateOrDiscard(generationId, "AgentExecutor.executeTask")) {
             return task.copy(status = TaskStatus.CANCELLED, summary = "Task cancelled by user.")
@@ -22,6 +24,7 @@ class AgentExecutor(private val context: Context?) {
         Log.i("ACE_EXECUTOR", "ACE_EXECUTOR: execution started")
         Log.i("ACE_EXECUTOR", "ACE_EXECUTOR: plan_received steps=${task.steps.size}")
         Log.i("ACE_EXECUTOR", "ACE_EXECUTOR: Received AgentPlan for goal '${task.goal}' with ${task.steps.size} step(s)")
+        Log.i("ACE_EXECUTOR", "ACE_EXECUTOR: brain_required=$brainRequired brain_available=$brainAvailable")
 
         // 1. Goal Requirement & Plan Completeness Extraction
         val planCompleteness = GoalRequirementExtractor.evaluatePlanCompleteness(task.goal, task.steps)
@@ -71,7 +74,7 @@ class AgentExecutor(private val context: Context?) {
         currentTask = currentTask.copy(steps = steps.toList())
 
         // 3. Automatically execute all action steps for autonomous completion
-        return resumeExecutionAfterApproval(currentTask, onStepUpdated, planCompleteness.isPlanComplete, generationId, onProgressSpeech)
+        return resumeExecutionAfterApproval(currentTask, onStepUpdated, planCompleteness.isPlanComplete, generationId, onProgressSpeech, brainRequired, brainAvailable)
     }
 
     suspend fun resumeExecutionAfterApproval(
@@ -79,11 +82,29 @@ class AgentExecutor(private val context: Context?) {
         onStepUpdated: (AgentTask) -> Unit,
         isPlanCompleteOverride: Boolean? = null,
         generationId: Long = 0L,
-        onProgressSpeech: ((capabilityId: String, params: Map<String, String>) -> Unit)? = null
+        onProgressSpeech: ((capabilityId: String, params: Map<String, String>) -> Unit)? = null,
+        brainRequired: Boolean = false,
+        brainAvailable: Boolean = false
     ): AgentTask {
         if (!AceTaskSessionManager.validateOrDiscard(generationId, "AgentExecutor.resumeExecution")) {
             return task.copy(status = TaskStatus.CANCELLED, summary = "Task cancelled by user.")
         }
+        
+        // Check if brain-dependent task but brain unavailable
+        if (brainRequired && !brainAvailable) {
+            Log.i("ACE_EXECUTOR", "ACE_EXECUTOR: brain_required=true brain_available=false")
+            Log.i("ACE_EXECUTOR", "ACE_EXECUTOR: Cannot execute brain-dependent task without Gemma")
+            val unavailableTask = task.copy(
+                status = TaskStatus.FAILED,
+                summary = "Local AI is unavailable. This task requires AI reasoning to proceed.",
+                requirements = task.requirements.map { it.copy(isVerified = false, verificationDetails = "Brain unavailable") },
+                completedAt = System.currentTimeMillis()
+            )
+            Log.i("ACE_TASK", "ACE_TASK: final_goal_status=FAILED reason=BRAIN_UNAVAILABLE")
+            onStepUpdated(unavailableTask)
+            return unavailableTask
+        }
+        
         var currentTask = task.copy(status = TaskStatus.RUNNING)
         onStepUpdated(currentTask)
 
@@ -272,6 +293,37 @@ class AgentExecutor(private val context: Context?) {
         accumulatedOutputs: Map<String, String>
     ): GoalRequirement {
         return when (req.id) {
+            "req_1_phone_dial" -> {
+                // Phone call requirement: check if contact_lookup + phone_dialer both succeeded
+                // AND the phone_dialer capability returned callInitiated=true
+                val contactStep = steps.firstOrNull { it.capabilityId == "contact_lookup" }
+                val dialStep = steps.firstOrNull { it.capabilityId == "phone_dialer" }
+                
+                val recipientVerified = accumulatedOutputs["recipientVerified"] == "true"
+                val callInitiated = accumulatedOutputs["callInitiated"] == "true"
+                val recipient = accumulatedOutputs["recipient"] ?: accumulatedOutputs["contactName"] ?: "contact"
+                
+                if (contactStep?.isComplete == true && dialStep?.isComplete == true && callInitiated && recipientVerified) {
+                    req.copy(isVerified = true, verificationDetails = "Phone call to '$recipient' initiated successfully.")
+                } else if (!callInitiated) {
+                    req.copy(isVerified = false, verificationDetails = "Call not actually initiated despite step completion.")
+                } else {
+                    req.copy(isVerified = false, verificationDetails = "Phone call capability unverified: contact or dialer step incomplete.")
+                }
+            }
+            "req_1_flashlight" -> {
+                // Flashlight requirement: check flashlightChanged=true and targetState matches intent
+                val flashStep = steps.firstOrNull { it.capabilityId == "flashlight" }
+                
+                val flashlightChanged = accumulatedOutputs["flashlightChanged"] == "true"
+                val targetState = accumulatedOutputs["targetState"] ?: "UNKNOWN"
+                
+                if (flashlightChanged && (targetState == "ON" || targetState == "OFF")) {
+                    req.copy(isVerified = true, verificationDetails = "Flashlight turned $targetState successfully.")
+                } else {
+                    req.copy(isVerified = false, verificationDetails = "Flashlight state change unverified.")
+                }
+            }
             "req_1_delivery" -> {
                 val status = accumulatedOutputs["status"]
                 val isSuccess = status == "HANDOFF_COMPLETED" || status == "SUCCESSFULLY_SENT" || status == "OPENED_TARGET_COMPOSER" || steps.any { it.isComplete }
@@ -284,11 +336,16 @@ class AgentExecutor(private val context: Context?) {
             "req_1_battery" -> {
                 req.copy(isVerified = true, verificationDetails = "Battery information retrieved successfully.")
             }
-            "req_1_flashlight" -> {
-                req.copy(isVerified = true, verificationDetails = "Flashlight state updated successfully.")
-            }
             "req_1_open_app" -> {
-                req.copy(isVerified = true, verificationDetails = "Requested application launch intent sent successfully.")
+                // Open app requirement: check appOpened=true in capability result
+                val appOpened = accumulatedOutputs["appOpened"] == "true"
+                val appName = accumulatedOutputs["appName"] ?: "app"
+                
+                if (appOpened) {
+                    req.copy(isVerified = true, verificationDetails = "Application '$appName' launched successfully.")
+                } else {
+                    req.copy(isVerified = false, verificationDetails = "Application launch unverified.")
+                }
             }
             "req_1_time_date" -> {
                 req.copy(isVerified = true, verificationDetails = "Current system date and time retrieved successfully.")
