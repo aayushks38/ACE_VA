@@ -1,6 +1,7 @@
 package com.ace.app.auth
 
-import kotlinx.coroutines.delay
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.tasks.await
 
 sealed class EmailAuthResult {
     data class Success(val userId: String, val email: String) : EmailAuthResult()
@@ -9,17 +10,7 @@ sealed class EmailAuthResult {
 
 class EmailAuthClient {
     
-    /**
-     * Sign in with email and password
-     * 
-     * This is a foundation for email authentication.
-     * In production, integrate with:
-     * - Firebase Authentication
-     * - Your custom backend API
-     * - Other authentication providers
-     */
     suspend fun signIn(email: String, password: String): EmailAuthResult {
-        // Validate input
         if (email.isBlank()) {
             return EmailAuthResult.Error("Email is required")
         }
@@ -36,23 +27,19 @@ class EmailAuthClient {
             return EmailAuthResult.Error("Password must be at least 6 characters")
         }
         
-        // Simulate network delay
-        delay(800)
-        
-        // TODO: Integrate with your authentication backend
-        // Example with Firebase:
-        // val authResult = Firebase.auth.signInWithEmailAndPassword(email, password).await()
-        // return EmailAuthResult.Success(authResult.user?.uid ?: "", email)
-        
-        // For now, return error indicating setup needed
-        return EmailAuthResult.Error(
-            "Email authentication not configured. Please integrate with your backend."
-        )
+        return try {
+            val authResult = FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password).await()
+            val user = authResult.user
+            if (user != null) {
+                EmailAuthResult.Success(user.uid, user.email ?: email)
+            } else {
+                EmailAuthResult.Error("Authentication failed: No user returned")
+            }
+        } catch (e: Exception) {
+            EmailAuthResult.Error(e.message ?: "Email authentication failed")
+        }
     }
     
-    /**
-     * Sign up with email and password
-     */
     suspend fun signUp(email: String, password: String, confirmPassword: String): EmailAuthResult {
         if (email.isBlank()) {
             return EmailAuthResult.Error("Email is required")
@@ -74,17 +61,19 @@ class EmailAuthClient {
             return EmailAuthResult.Error("Passwords do not match")
         }
         
-        delay(800)
-        
-        // TODO: Integrate with your authentication backend
-        return EmailAuthResult.Error(
-            "Email registration not configured. Please integrate with your backend."
-        )
+        return try {
+            val authResult = FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password).await()
+            val user = authResult.user
+            if (user != null) {
+                EmailAuthResult.Success(user.uid, user.email ?: email)
+            } else {
+                EmailAuthResult.Error("Registration failed: No user returned")
+            }
+        } catch (e: Exception) {
+            EmailAuthResult.Error(e.message ?: "Email registration failed")
+        }
     }
     
-    /**
-     * Send password reset email
-     */
     suspend fun resetPassword(email: String): EmailAuthResult {
         if (email.isBlank()) {
             return EmailAuthResult.Error("Email is required")
@@ -94,15 +83,16 @@ class EmailAuthClient {
             return EmailAuthResult.Error("Invalid email format")
         }
         
-        delay(800)
-        
-        // TODO: Integrate with your authentication backend
-        return EmailAuthResult.Error(
-            "Password reset not configured. Please integrate with your backend."
-        )
+        return try {
+            FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
+            EmailAuthResult.Success("", email)
+        } catch (e: Exception) {
+            EmailAuthResult.Error(e.message ?: "Password reset failed")
+        }
     }
     
     private fun isValidEmail(email: String): Boolean {
         return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
     }
 }
+

@@ -29,6 +29,15 @@ private val AceDarkColorScheme = darkColorScheme(
     onError = AceTextWhite
 )
 
+private fun android.content.Context.findActivity(): Activity? {
+    var current = this
+    while (current is android.content.ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
+}
+
 @Composable
 fun AceTheme(
     content: @Composable () -> Unit
@@ -38,12 +47,15 @@ fun AceTheme(
     
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = AceBackgroundDark.toArgb()
-            window.navigationBarColor = AceBackgroundDark.toArgb()
-            WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = false
-                isAppearanceLightNavigationBars = false
+            val activity = view.context.findActivity()
+            if (activity != null) {
+                val window = activity.window
+                window.statusBarColor = AceBackgroundDark.toArgb()
+                window.navigationBarColor = AceBackgroundDark.toArgb()
+                WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = false
+                    isAppearanceLightNavigationBars = false
+                }
             }
         }
     }

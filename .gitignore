@@ -20,9 +20,19 @@ yarn-error.log*
 
 # Android / Gradle
 .gradle/
+/.gradle-user-home/
+/.kotlin/
+build-verification*.log
 build/
 */build/
 local.properties
+
+# Native build artifacts (CMake / llama.cpp FetchContent + NDK output)
+.cxx/
+**/.cxx/
+
+# Local model weights — never commit the multi-GB GGUF binary
+*.gguf
 
 # Flutter
 .dart_tool/

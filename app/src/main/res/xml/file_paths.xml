@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- App-internal storage (where FileDiscovery/ModelDownloader write). -->
+    <files-path name="internal_files" path="." />
+    <cache-path name="internal_cache" path="." />
+    <!-- App-specific external dirs. -->
+    <external-files-path name="ext_files" path="." />
+    <external-cache-path name="ext_cache" path="." />
+    <!-- Shared external storage (e.g. MediaStore results under /storage/emulated/0). -->
+    <external-path name="external_storage" path="." />
+</paths>
