@@ -110,7 +110,7 @@ class GemmaLocalBrain : LocalBrain {
 
                 brainState.set(BrainState.LOADING_MODEL)
                 Log.i(TAG_LOAD, "ACE_MODEL_LOAD: starting model load")
-                Log.e("ACE_MODEL_PATH", "ACE_MODEL_PATH: /storage/emulated/0/Download/gemma-3n-E2B-it-Q4_0.gguf")
+                Log.e("ACE_MODEL_PATH", "ACE_MODEL_PATH: /storage/emulated/0/Download/AceModels/gemma-3n-E2B-it-Q4_0.gguf")
                 Log.e("ACE_MODEL_SOURCE", "ACE_MODEL_SOURCE: persistent_existing_file")
                 Log.e("ACE_MODEL_COPY", "ACE_MODEL_COPY: skipped")
 

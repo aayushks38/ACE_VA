@@ -80,6 +80,11 @@ class VoiceManager(
             activeSessionId = sessionId
             partialResultsCount = 0
             finalResultsCount = 0
+            
+            Log.i("ACE_SESSION", "ACE_SESSION: tap_received")
+            Log.i("ACE_SESSION", "ACE_SESSION: state_transition=IDLE→LISTENING")
+            Log.i("ACE_VOICE", "ACE_VOICE: listening_start immediately")
+            
             Log.i("ACE_MIC", "ACE_MIC: mic_active=true mic_owner=SpeechRecognizer session=$sessionId synthetic_event=false")
             if (currentState == VoiceState.SPEAKING) {
                 Log.i("ACE_INTERRUPT", "ACE_INTERRUPT: user speech barge-in detected during TTS")
@@ -128,6 +133,7 @@ class VoiceManager(
                     override fun onEndOfSpeech() {
                         Log.i("ACE_SPEECH", "ACE_SPEECH: session=$activeSessionId speech_ended=true")
                         Log.i("ACE_MIC", "ACE_MIC: mic_active=false session=$activeSessionId synthetic_event=false")
+                        Log.i("ACE_SESSION", "ACE_SESSION: state_transition=LISTENING→THINKING")
                         updateState(VoiceState.THINKING)
                         mainHandler.post { onSpeechEnd?.invoke() }
                     }
@@ -146,6 +152,7 @@ class VoiceManager(
                             else -> "Speech recognition issue ($error)."
                         }
                         Log.w("ACE_SPEECH", "ACE_SPEECH: session=$activeSessionId error_code=$error message=\"$message\"")
+                        Log.i("ACE_SESSION", "ACE_SESSION: state_transition=THINKING→IDLE")
                         updateState(VoiceState.IDLE)
 
                         // Silently auto-retry on transient busy/client errors (no toast shown), max 2 retries
@@ -171,6 +178,7 @@ class VoiceManager(
 
                         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         val spokenText = matches?.firstOrNull()?.trim().orEmpty()
+                        Log.i("ACE_SESSION", "ACE_SESSION: state_transition=THINKING→IDLE_pending_route")
                         updateState(VoiceState.IDLE)
                         val isValid = isValidVoiceCommand(spokenText)
 
@@ -198,7 +206,7 @@ class VoiceManager(
                     override fun onEvent(eventType: Int, params: Bundle?) {}
                 }
 
-                // Allow 250ms for the system to release the previous audio session
+                // Allow 100ms for the system to release the previous audio session before starting new one
                 mainHandler.postDelayed({
                     try {
                         val speechRec = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
@@ -227,7 +235,7 @@ class VoiceManager(
                         recognizer = null
                         updateState(VoiceState.IDLE)
                     }
-                }, 250L)
+                }, 100L)
             } catch (e: Exception) {
                 Log.e("ACE_SPEECH", "ACE_SPEECH: session=$activeSessionId error=\"${e.message}\"", e)
                 try { recognizer?.destroy() } catch (_: Exception) {}

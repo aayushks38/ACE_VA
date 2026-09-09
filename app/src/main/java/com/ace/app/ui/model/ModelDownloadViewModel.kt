@@ -65,7 +65,7 @@ class ModelDownloadViewModel(application: Application) : AndroidViewModel(applic
             val validation = ModelRepository.validateModel(context, uri, null)
             when (validation) {
                 is ModelValidationResult.Success -> {
-                    ModelRepository.registerModel(context, uri, "/storage/emulated/0/Download/gemma-3n-E2B-it-Q4_0.gguf", validation.spec.name)
+                    ModelRepository.registerModel(context, uri, "/storage/emulated/0/Download/AceModels/gemma-3n-E2B-it-Q4_0.gguf", validation.spec.name)
                     val loaded = com.ace.app.brain.GemmaBrainManager.ensureRuntimeLoaded(context)
                     if (loaded) {
                         _uiState.value = _uiState.value.copy(isLoading = false, isReady = true)

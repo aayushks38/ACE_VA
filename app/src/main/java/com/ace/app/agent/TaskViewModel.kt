@@ -254,6 +254,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 val routeStr = route.result.route.name
                 android.util.Log.i("ACE_PERF", "ACE_PERF: route=$routeStr start_ms=$startMs finish_ms=$finishMs duration_ms=${finishMs - startMs}")
                 android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: FAST_ACTION capability plan selected")
+                android.util.Log.i("ACE_SESSION", "ACE_SESSION: state_transition=IDLE→EXECUTING")
                 _uiState.value = _uiState.value.copy(announcement = "Executing task...")
                 executePlan(cleanGoal, route.plan, generationId)
             }
@@ -263,6 +264,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 val routeStr = route.result.route.name
                 android.util.Log.i("ACE_PERF", "ACE_PERF: route=$routeStr start_ms=$startMs finish_ms=$finishMs duration_ms=${finishMs - startMs}")
                 android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: WORKFLOW capability plan selected")
+                android.util.Log.i("ACE_SESSION", "ACE_SESSION: state_transition=IDLE→EXECUTING")
                 _uiState.value = _uiState.value.copy(announcement = "Executing task...")
                 executePlan(cleanGoal, route.plan, generationId)
             }

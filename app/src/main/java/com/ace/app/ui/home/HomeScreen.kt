@@ -116,21 +116,15 @@ fun HomeScreen(
                 voiceManager.stopSpeaking()
                 AceProgressSpeaker.clear(0L)
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                    voiceManager.speak("Yes?", 0L) { 0L }
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        voiceManager.startListening()
-                    }, 600)
+                    voiceManager.startListening()
                 }
             }
             VoiceState.EXECUTING -> {
                 // Interrupt execution: cancel is handled by TaskViewModel when new goal arrives
-                // Just ask "Yes?" and start listening — new submitVoiceGoal will cancel old task
+                // Just start listening — new submitVoiceGoal will cancel old task
                 AceProgressSpeaker.clear(0L)
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                    voiceManager.speak("Yes?", 0L) { 0L }
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        voiceManager.startListening()
-                    }, 600)
+                    voiceManager.startListening()
                 }
             }
             VoiceState.LISTENING -> voiceManager.stopListening()
@@ -139,10 +133,7 @@ fun HomeScreen(
             }
             VoiceState.IDLE -> {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                    voiceManager.speak("Yes?", 0L) { 0L }
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        voiceManager.startListening()
-                    }, 600)
+                    voiceManager.startListening()
                 } else {
                     permissionsLauncher.launch(arrayOf(
                         Manifest.permission.RECORD_AUDIO,
