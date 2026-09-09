@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "com.ace.app"
     compileSdk = 35
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "com.ace.app"

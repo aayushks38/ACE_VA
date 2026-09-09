@@ -1468,9 +1468,27 @@ class UiOpenAppCapability : AgentCapability {
 
         if (success) {
             kotlinx.coroutines.delay(1200)
-            CapabilityResult(isSuccess = true, message = "Opened app '$packageName' automatically on phone.")
+            // Return structured verification data
+            CapabilityResult(
+                isSuccess = true,
+                message = "Opened app '$packageName' automatically on phone.",
+                outputData = mapOf(
+                    "appOpened" to "true",
+                    "appName" to packageName,
+                    "verificationState" to "VERIFIED"
+                )
+            )
         } else {
-            CapabilityResult(isSuccess = false, message = "Failed to launch app '$packageName'. Ensure it is installed.", error = "App not found")
+            CapabilityResult(
+                isSuccess = false,
+                message = "Failed to launch app '$packageName'. Ensure it is installed.",
+                error = "App not found",
+                outputData = mapOf(
+                    "appOpened" to "false",
+                    "appName" to packageName,
+                    "verificationState" to "FAILED"
+                )
+            )
         }
     }
 }
@@ -1489,7 +1507,15 @@ class UiClickCapability : AgentCapability {
         val service = com.ace.app.accessibility.AceAccessibilityService.getInstance()
 
         if (service == null) {
-            return@withContext CapabilityResult(isSuccess = false, message = "Accessibility service is not enabled. Please enable ACE in Accessibility Settings.", error = "Accessibility disabled")
+            return@withContext CapabilityResult(
+                isSuccess = false,
+                message = "ACE Accessibility Service is required to perform in-app interactions inside the active app. Please enable ACE in Accessibility Settings.",
+                error = "Accessibility disabled",
+                outputData = mapOf(
+                    "requiresAccessibility" to "true",
+                    "verificationState" to "BLOCKED"
+                )
+            )
         }
 
         val success = when {
@@ -1499,9 +1525,26 @@ class UiClickCapability : AgentCapability {
         }
 
         if (success) {
-            CapabilityResult(isSuccess = true, message = "Clicked UI element '${targetText.ifBlank { targetId }}'.")
+            CapabilityResult(
+                isSuccess = true,
+                message = "Clicked UI element '${targetText.ifBlank { targetId }}'.",
+                outputData = mapOf(
+                    "clickExecuted" to "true",
+                    "target" to targetText.ifBlank { targetId },
+                    "verificationState" to "VERIFIED"
+                )
+            )
         } else {
-            CapabilityResult(isSuccess = false, message = "Could not find or click UI element '${targetText.ifBlank { targetId }}' on screen.", error = "Node not found")
+            CapabilityResult(
+                isSuccess = false,
+                message = "Could not find or click UI element '${targetText.ifBlank { targetId }}' on screen.",
+                error = "Node not found",
+                outputData = mapOf(
+                    "clickExecuted" to "false",
+                    "target" to targetText.ifBlank { targetId },
+                    "verificationState" to "FAILED"
+                )
+            )
         }
     }
 }
@@ -1520,14 +1563,39 @@ class UiTypeCapability : AgentCapability {
         val service = com.ace.app.accessibility.AceAccessibilityService.getInstance()
 
         if (service == null) {
-            return@withContext CapabilityResult(isSuccess = false, message = "Accessibility service is not enabled. Please enable ACE in Accessibility Settings.", error = "Accessibility disabled")
+            return@withContext CapabilityResult(
+                isSuccess = false,
+                message = "ACE Accessibility Service is required to perform in-app interactions inside the active app. Please enable ACE in Accessibility Settings.",
+                error = "Accessibility disabled",
+                outputData = mapOf(
+                    "requiresAccessibility" to "true",
+                    "verificationState" to "BLOCKED"
+                )
+            )
         }
 
         val success = service.typeText(textToType, fieldHint)
         if (success) {
-            CapabilityResult(isSuccess = true, message = "Typed '$textToType' into active input field.")
+            CapabilityResult(
+                isSuccess = true,
+                message = "Typed '$textToType' into active input field.",
+                outputData = mapOf(
+                    "textTyped" to "true",
+                    "text" to textToType,
+                    "verificationState" to "VERIFIED"
+                )
+            )
         } else {
-            CapabilityResult(isSuccess = false, message = "Could not find active input field to type '$textToType'.", error = "Input field not found")
+            CapabilityResult(
+                isSuccess = false,
+                message = "Could not find active input field to type '$textToType'.",
+                error = "Input field not found",
+                outputData = mapOf(
+                    "textTyped" to "false",
+                    "text" to textToType,
+                    "verificationState" to "FAILED"
+                )
+            )
         }
     }
 }
@@ -1596,9 +1664,29 @@ class FlashlightCapability : AgentCapability {
 
             cameraManager.setTorchMode(cameraId, turnOn)
             val actionText = if (turnOn) "Turned on" else "Turned off"
-            CapabilityResult(isSuccess = true, message = "$actionText device flashlight.")
+            val targetState = if (turnOn) "ON" else "OFF"
+            
+            // Return structured verification data
+            CapabilityResult(
+                isSuccess = true, 
+                message = "$actionText device flashlight.",
+                outputData = mapOf(
+                    "flashlightChanged" to "true",
+                    "targetState" to targetState,
+                    "currentState" to targetState,
+                    "action" to actionText
+                )
+            )
         } catch (e: Exception) {
-            CapabilityResult(isSuccess = false, message = "Flashlight toggle failed: ${e.message}", error = e.message)
+            CapabilityResult(
+                isSuccess = false, 
+                message = "Flashlight toggle failed: ${e.message}", 
+                error = e.message,
+                outputData = mapOf(
+                    "flashlightChanged" to "false",
+                    "targetState" to "UNKNOWN"
+                )
+            )
         }
     }
 }

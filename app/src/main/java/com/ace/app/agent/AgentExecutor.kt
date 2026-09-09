@@ -292,35 +292,52 @@ class AgentExecutor(private val context: Context?) {
         steps: List<TaskStep>,
         accumulatedOutputs: Map<String, String>
     ): GoalRequirement {
+        Log.i("ACE_VERIFY", "ACE_VERIFY: evaluating requirement id=${req.id} description=${req.description}")
+        
         return when (req.id) {
             "req_1_phone_dial" -> {
+                Log.i("ACE_VERIFY", "ACE_VERIFY: phone_dial requirement handler")
                 // Phone call requirement: check if contact_lookup + phone_dialer both succeeded
                 // AND the phone_dialer capability returned callInitiated=true
                 val contactStep = steps.firstOrNull { it.capabilityId == "contact_lookup" }
                 val dialStep = steps.firstOrNull { it.capabilityId == "phone_dialer" }
                 
+                Log.i("ACE_VERIFY", "ACE_VERIFY: contact_lookup_step_exists=${contactStep != null} contact_complete=${contactStep?.isComplete}")
+                Log.i("ACE_VERIFY", "ACE_VERIFY: phone_dialer_step_exists=${dialStep != null} dial_complete=${dialStep?.isComplete}")
+                
                 val recipientVerified = accumulatedOutputs["recipientVerified"] == "true"
                 val callInitiated = accumulatedOutputs["callInitiated"] == "true"
                 val recipient = accumulatedOutputs["recipient"] ?: accumulatedOutputs["contactName"] ?: "contact"
                 
+                Log.i("ACE_VERIFY", "ACE_VERIFY: recipientVerified=$recipientVerified callInitiated=$callInitiated recipient=$recipient")
+                
                 if (contactStep?.isComplete == true && dialStep?.isComplete == true && callInitiated && recipientVerified) {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: Make Phone Call=VERIFIED")
                     req.copy(isVerified = true, verificationDetails = "Phone call to '$recipient' initiated successfully.")
                 } else if (!callInitiated) {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: Make Phone Call=UNVERIFIED reason=callInitiated_false")
                     req.copy(isVerified = false, verificationDetails = "Call not actually initiated despite step completion.")
                 } else {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: Make Phone Call=UNVERIFIED reason=step_incomplete")
                     req.copy(isVerified = false, verificationDetails = "Phone call capability unverified: contact or dialer step incomplete.")
                 }
             }
             "req_1_flashlight" -> {
+                Log.i("ACE_VERIFY", "ACE_VERIFY: flashlight requirement handler")
                 // Flashlight requirement: check flashlightChanged=true and targetState matches intent
                 val flashStep = steps.firstOrNull { it.capabilityId == "flashlight" }
                 
                 val flashlightChanged = accumulatedOutputs["flashlightChanged"] == "true"
                 val targetState = accumulatedOutputs["targetState"] ?: "UNKNOWN"
                 
+                Log.i("ACE_VERIFY", "ACE_VERIFY: flashlight_step_exists=${flashStep != null} step_complete=${flashStep?.isComplete}")
+                Log.i("ACE_VERIFY", "ACE_VERIFY: flashlightChanged=$flashlightChanged targetState=$targetState")
+                
                 if (flashlightChanged && (targetState == "ON" || targetState == "OFF")) {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: flashlight=VERIFIED targetState=$targetState")
                     req.copy(isVerified = true, verificationDetails = "Flashlight turned $targetState successfully.")
                 } else {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: flashlight=UNVERIFIED flashlightChanged=$flashlightChanged")
                     req.copy(isVerified = false, verificationDetails = "Flashlight state change unverified.")
                 }
             }
@@ -341,10 +358,34 @@ class AgentExecutor(private val context: Context?) {
                 val appOpened = accumulatedOutputs["appOpened"] == "true"
                 val appName = accumulatedOutputs["appName"] ?: "app"
                 
+                Log.i("ACE_VERIFY", "ACE_VERIFY: open_app handler appOpened=$appOpened appName=$appName")
+                
                 if (appOpened) {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: open_app=VERIFIED appName=$appName")
                     req.copy(isVerified = true, verificationDetails = "Application '$appName' launched successfully.")
                 } else {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: open_app=UNVERIFIED")
                     req.copy(isVerified = false, verificationDetails = "Application launch unverified.")
+                }
+            }
+            "req_2_search" -> {
+                // Search requirement: check if it was attempted and whether it succeeded or is blocked by accessibility
+                val textTyped = accumulatedOutputs["textTyped"] == "true"
+                val requiresAccessibility = accumulatedOutputs["requiresAccessibility"] == "true"
+                val searchTerm = accumulatedOutputs["text"] ?: "search term"
+                
+                Log.i("ACE_VERIFY", "ACE_VERIFY: search handler textTyped=$textTyped requiresAccessibility=$requiresAccessibility")
+                
+                if (textTyped) {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: search=VERIFIED term=$searchTerm")
+                    req.copy(isVerified = true, verificationDetails = "Searched for '$searchTerm' in app.")
+                } else if (requiresAccessibility) {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: search=BLOCKED reason=accessibility_required")
+                    // Return unverified but include info that it's blocked by accessibility
+                    req.copy(isVerified = false, verificationDetails = "Search requires ACE Accessibility Service. Enable it in Accessibility Settings.")
+                } else {
+                    Log.i("ACE_VERIFY", "ACE_VERIFY: search=UNVERIFIED")
+                    req.copy(isVerified = false, verificationDetails = "Could not perform search in app.")
                 }
             }
             "req_1_time_date" -> {

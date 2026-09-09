@@ -206,7 +206,31 @@ object GoalRequirementExtractor {
             )
         }
 
-        // Instant App Launch Intent
+        // Multi-step goal handling: "Open App and search" or "Open App and <action>"
+        if ((lower.startsWith("open ") || lower.startsWith("launch ")) && (lower.contains(" and ") || lower.contains("search") || lower.contains("find"))) {
+            val appTarget = extractAppTarget(lower)
+            requirements.add(
+                GoalRequirement(
+                    id = "req_1_open_app",
+                    description = "Requested application '$appTarget' launched"
+                )
+            )
+            
+            // Check for search action
+            if (lower.contains("search ") || lower.contains("find ")) {
+                val searchTerm = extractSearchTerm(lower)
+                requirements.add(
+                    GoalRequirement(
+                        id = "req_2_search",
+                        description = if (searchTerm.isNotBlank()) "Search for '$searchTerm' in app" else "Search content in app"
+                    )
+                )
+            }
+            
+            return requirements
+        }
+
+        // Instant App Launch Intent (single-step)
         if ((lower.startsWith("open ") || lower.startsWith("launch ")) && !lower.contains("photo") && !lower.contains("file")) {
             return listOf(
                 GoalRequirement(
@@ -272,6 +296,12 @@ object GoalRequirementExtractor {
             )
         }
         return requirements
+    }
+
+    private fun extractSearchTerm(lower: String): String {
+        val searchPattern = Regex("""search\s+(?:for\s+)?["']?([^"']+)["']?(?:\s+|$)""", RegexOption.IGNORE_CASE)
+        val match = searchPattern.find(lower)
+        return match?.groupValues?.getOrNull(1)?.trim() ?: ""
     }
 
 

@@ -101,26 +101,9 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
 
 
     private fun registerGoalReceiver() {
-        try {
-            val filter = android.content.IntentFilter().apply {
-                addAction("com.ace.app.SUBMIT_GOAL")
-                addAction("com.ace.app.ACTION_SUBMIT_GOAL")
-            }
-            val receiver = object : android.content.BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: android.content.Intent?) {
-                    val goal = intent?.getStringExtra("goal")
-                    if (!goal.isNullOrBlank()) {
-                        submitVoiceGoal(goal)
-                    }
-                }
-            }
-            androidx.core.content.ContextCompat.registerReceiver(
-                getApplication(),
-                receiver,
-                filter,
-                androidx.core.content.ContextCompat.RECEIVER_EXPORTED
-            )
-        } catch (_: Exception) {}
+        // Receiver is registered in HomeScreen via DisposableEffect
+        // This method is kept for compatibility but does nothing
+        android.util.Log.i("ACE_BROADCAST_RX", "ACE_BROADCAST_RX: receiver registration delegated to HomeScreen")
     }
 
     private fun initializeBrain() {
@@ -229,6 +212,8 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         val cleanGoal = goal.trim()
         if (cleanGoal.isBlank()) return
 
+        android.util.Log.i("ACE_TASK", "ACE_TASK: submitVoiceGoal_START goal=$cleanGoal")
+        
         val generationId = AceTaskSessionManager.startNewSession(cleanGoal, brain, voiceManager, executionJob)
         currentGeneration.set(generationId)
         // Clear pending progress speech from any previous task
@@ -247,6 +232,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         val startMs = System.currentTimeMillis()
         AceConversationContext.update(cleanGoal)
         android.util.Log.i("ACE_TASK", "ACE_TASK: Received voice command = $cleanGoal")
+        android.util.Log.i("ACE_TASK", "ACE_TASK: brain.isReady()=${brain.isReady()}")
 
         when (val route = commandRouter.route(cleanGoal, brainAvailable = brain.isReady())) {
             is CommandRoute.Fast -> {
@@ -254,6 +240,7 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 val routeStr = route.result.route.name
                 android.util.Log.i("ACE_PERF", "ACE_PERF: route=$routeStr start_ms=$startMs finish_ms=$finishMs duration_ms=${finishMs - startMs}")
                 android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: FAST_ACTION capability plan selected")
+                android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: execution_mode=${route.result.executionMode} brain_required=${route.result.brainRequired} brain_available=${route.result.brainAvailable}")
                 android.util.Log.i("ACE_SESSION", "ACE_SESSION: state_transition=IDLE→EXECUTING")
                 _uiState.value = _uiState.value.copy(announcement = "Executing task...")
                 executePlan(cleanGoal, route.plan, generationId, brainRequired = route.result.brainRequired, brainAvailable = route.result.brainAvailable)
@@ -264,12 +251,15 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
                 val routeStr = route.result.route.name
                 android.util.Log.i("ACE_PERF", "ACE_PERF: route=$routeStr start_ms=$startMs finish_ms=$finishMs duration_ms=${finishMs - startMs}")
                 android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: WORKFLOW capability plan selected")
+                android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: execution_mode=${route.result.executionMode} brain_required=${route.result.brainRequired} brain_available=${route.result.brainAvailable}")
                 android.util.Log.i("ACE_SESSION", "ACE_SESSION: state_transition=IDLE→EXECUTING")
                 _uiState.value = _uiState.value.copy(announcement = "Executing task...")
                 executePlan(cleanGoal, route.plan, generationId, brainRequired = route.result.brainRequired, brainAvailable = route.result.brainAvailable)
             }
 
             is CommandRoute.DeepBrain -> {
+                android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: DEEP_BRAIN route selected")
+                android.util.Log.i("ACE_ROUTER", "ACE_ROUTER: execution_mode=${route.result.executionMode} brain_required=${route.result.brainRequired} brain_available=${route.result.brainAvailable}")
                 android.util.Log.i("ACE_INFERENCE", "ACE_INFERENCE: starting generation")
 
                 viewModelScope.launch {

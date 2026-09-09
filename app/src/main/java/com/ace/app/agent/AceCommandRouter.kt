@@ -315,6 +315,41 @@ class AceCommandRouter {
         if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start ") || lower.startsWith("run ") || lower.startsWith("show me ")) {
             val target = extractTarget(subCmd, listOf("open ", "launch ", "start ", "run ", "show me "))
             if (target.isNotBlank()) {
+                // Check for "open app and search" pattern
+                if ((lower.contains(" and search ") || lower.contains(" and find ")) && !target.lowercase().contains("settings")) {
+                    val appName = when {
+                        target.lowercase().contains("youtube") -> "YouTube"
+                        target.lowercase().contains("facebook") -> "Facebook"
+                        target.lowercase().contains("instagram") -> "Instagram"
+                        target.lowercase().contains("twitter") -> "Twitter"
+                        target.lowercase().contains("reddit") -> "Reddit"
+                        target.lowercase().contains("chrome") -> "Chrome"
+                        target.lowercase().contains("browser") -> "Chrome"
+                        else -> target.split(" ").firstOrNull()?.replaceFirstChar { it.uppercase() } ?: "app"
+                    }
+                    val searchTerm = if (lower.contains(" and search ")) {
+                        lower.substringAfter(" and search ").trim().trim('"', '\'')
+                    } else {
+                        lower.substringAfter(" and find ").trim().trim('"', '\'')
+                    }
+                    
+                    return listOf(
+                        TaskStep(
+                            id = "step_${startStepIdx}_open",
+                            label = "Open $appName",
+                            capabilityId = "ui_open_app",
+                            inputParams = mapOf("app" to appName.lowercase(), "appName" to appName)
+                        ),
+                        TaskStep(
+                            id = "step_${startStepIdx + 1}_search",
+                            label = "Search for \"$searchTerm\" in $appName",
+                            capabilityId = "ui_type",
+                            dependsOnStepIds = listOf("step_${startStepIdx}_open"),
+                            inputParams = mapOf("text" to searchTerm, "query" to searchTerm)
+                        )
+                    )
+                }
+                
                 if (target.lowercase().contains("battery") || lower.contains("battery")) {
                     return listOf(
                         TaskStep(

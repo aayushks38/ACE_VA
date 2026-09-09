@@ -81,18 +81,25 @@ fun HomeScreen(
     DisposableEffect(voiceManager) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                android.util.Log.i("ACE_BROADCAST_RX", "ACE_BROADCAST_RX: onReceive called action=${intent?.action}")
                 val goal = intent?.getStringExtra("goal")
+                android.util.Log.i("ACE_BROADCAST_RX", "ACE_BROADCAST_RX: goal='$goal' isBlank=${goal.isNullOrBlank()}")
                 if (!goal.isNullOrBlank()) {
+                    android.util.Log.i("ACE_BROADCAST_RX", "ACE_BROADCAST_RX: calling handleSpokenInput with goal='$goal'")
                     viewModel.handleSpokenInput(goal)
+                } else {
+                    android.util.Log.w("ACE_BROADCAST_RX", "ACE_BROADCAST_RX: goal is null or blank, not calling handleSpokenInput")
                 }
             }
         }
         val filter = android.content.IntentFilter("com.ace.app.SUBMIT_GOAL")
+        android.util.Log.i("ACE_BROADCAST_RX", "ACE_BROADCAST_RX: registering receiver for com.ace.app.SUBMIT_GOAL")
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
         }
+        android.util.Log.i("ACE_BROADCAST_RX", "ACE_BROADCAST_RX: receiver registered successfully")
         onDispose {
             try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
         }
