@@ -42,3 +42,4 @@ local.properties
 .pub-cache/
 .pub/
 gradle/gradle-daemon-jvm.properties
+!model/gemma-3n-E2B-it-Q4_0.gguf
